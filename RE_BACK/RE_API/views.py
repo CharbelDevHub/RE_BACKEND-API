@@ -6,8 +6,10 @@ from rest_framework import status
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 
-from .models import Agency, City
-from .serializer import AgencySerializer, CitySerializer, UserLoginSerializer, UserSerializer
+from .models import Agency, City, Property
+from .serializer import  AgencyNewSerializer, CitySerializer, PropertySerializer
+from .models import Agency, Contract, Payment, User
+from .serializer import AgencySerializer, ContractSerializer, PaymentSerializer, UserLoginSerializer, UserSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 class LoginAPIView(APIView):
@@ -42,9 +44,19 @@ class AgencyDetailsView(APIView):
         agency = Agency.objects.get(id=agency_id)
         serializer = AgencySerializer(agency)
         return Response(serializer.data)
+    
+class RegisterAPIView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()  # Save the user instance
+            user.set_password(serializer.validated_data['password'])  # Hash the password
+            user.save()  # Save the user again to update the hashed password
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class AgencyView(APIView):
-    # permission_classes = [IsAuthenticated]
     permission_classes = [AllowAny]
 
     def get(self, request, pk=None):
@@ -115,9 +127,8 @@ class AgencyDeleteView(APIView):
 class AgencyCreateView(APIView):  
       permission_classes = [AllowAny]
       
-
       def post(self, request):                
-        serializer = AgencySerializer(data=request.data)
+        serializer = AgencyNewSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -133,3 +144,65 @@ class CityListView(APIView):
         return Response(serializer.data)
     
 
+class UpdateUserAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def put(self, request):
+        user_id = request.data['id']
+        user = User.objects.get(id=user_id)
+
+        data = request.data
+        
+        if 'first_name' in data:
+            user.first_name = data['first_name']
+        if 'last_name' in data:
+            user.last_name = data['last_name']
+        if 'email' in data:
+            user.email = data['email']
+        if 'birthdate' in data:
+            user.birthdate = data['birthdate']
+        if 'phoneNumber' in data:
+            user.phoneNumber = data['phoneNumber']
+        
+        user.save()
+        return Response({'message': 'User updated successfully'}, status=status.HTTP_200_OK)
+
+class ContractGetAllView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        contract = Contract.objects.all()
+        serializer = ContractSerializer(contract, many=True)
+        return Response(serializer.data)
+
+class GetContractPaymentsView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        contract_id = request.data.get('contract_id')
+        if not contract_id:
+            return Response({"error": "Contract ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        contract = get_object_or_404(Contract, id=contract_id)
+        payments = Payment.objects.filter(contract=contract)
+        serializer = PaymentSerializer(payments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+
+class PropertyListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        property = Property.objects.all()
+        serializer = PropertySerializer(property, many=True)
+        return Response(serializer.data)
+    
+class PropertyDeleteView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        property_id = request.data['property_id']
+        property = Property.objects.get(id=property_id)
+        property.deleted = True
+        property.save()
+        return Response({})
