@@ -13,7 +13,19 @@ class UserSerializer(serializers.ModelSerializer):
                   'phoneNumberCode', 'phoneNumber', 'profileImage', 'agency_id', 'specialization_id',
                   'userType_id']
 
+
+class CitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = City
+        fields = ['id', 'name']  # Adjust fields as per your City model
+
 class AgencySerializer(serializers.ModelSerializer):
+    
+    city_description = serializers.SerializerMethodField()
+    
     class Meta: 
         model = Agency
-        fields = '__all__'
+        fields = ['id', 'fullName', 'arFullName', 'shortName', 'licenseCode', 'city', 'city_description', 'logo', 'address', 'image']
+    
+    def get_city_description(self, obj):
+        return obj.city.name if obj.city else None
